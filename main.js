@@ -19,7 +19,8 @@ class Game {
             this.player = new Player(this.model, this.view);
 
             this.render = () => {
-                // Step the simulation forward.  
+                this.player.updateModel();
+                // Step the simulation forward.
                 this.model.step();
                 this.player.updateView();
                 this.view.renderer.render(this.view.scene, this.view.camera);
