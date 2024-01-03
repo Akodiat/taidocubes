@@ -11,7 +11,9 @@ class Game {
             this.model = new RAPIER.World(gravity);
 
             // Create the ground
-            let groundColliderDesc = RAPIER.ColliderDesc.cuboid(10.0, 0.1, 10.0);
+            let groundColliderDesc = RAPIER.ColliderDesc.cuboid(
+                10.0, 0.1, 10.0
+            );
             this.model.createCollider(groundColliderDesc);
 
             this.view = new View();
@@ -23,6 +25,13 @@ class Game {
                 // Step the simulation forward.
                 this.model.step();
                 this.player.updateView();
+
+                // Update camera
+                const camdir = this.player.crosshairMesh.position.clone().sub(this.player.mesh.position).normalize()
+                this.view.camera.position.lerp(this.player.mesh.position.clone().sub(camdir.multiplyScalar(10)).add(new THREE.Vector3(0, 10, 0)), 0.1)
+                this.view.camera.lookAt(this.player.crosshairMesh.position);
+
+
                 this.view.renderer.render(this.view.scene, this.view.camera);
                 requestAnimationFrame(this.render);
             }
@@ -52,7 +61,16 @@ class View {
         // Setup scene and camera
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.set(2, 2, 10);
+        this.camera.position.set(0, 6, 10);
+        this.camera.lookAt(new THREE.Vector3());
+
+        // Draw the ground
+        const groundGeometry = new THREE.BoxGeometry(20.0, 0.2, 20.0);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0xaaaaaa
+        });
+        this.groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
+        this.scene.add(this.groundMesh);
 
         // Setup lights
         const pointLight = new THREE.PointLight();
@@ -64,11 +82,11 @@ class View {
         this.scene.add(ambientLight);
 
         // Add x-y-z axis indicator
-        const axesHelper = new THREE.AxesHelper(5);
+        const axesHelper = new THREE.AxesHelper(30);
         this.scene.add(axesHelper);
 
         // And camera controls
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        //this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         //controls.addEventListener('change', render);
 
         // Update camera aspect ratio on window resize

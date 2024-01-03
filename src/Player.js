@@ -1,5 +1,6 @@
 import RAPIER from 'https://cdn.skypack.dev/@dimforge/rapier3d-compat';
 import * as THREE from 'three';
+import {getSignedAngle} from './utils.js';
 
 class Player {
     constructor(
@@ -30,19 +31,19 @@ class Player {
         /////////////////////
 
         // Draw a cube
-        const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const cubeGeometry = new THREE.BoxGeometry(size.x * 2, size.y * 2, size.z * 2);
         const cubeMaterial = new THREE.MeshStandardMaterial({
             color: 0xaaaaaa
         });
         this.mesh = new THREE.Mesh(cubeGeometry, cubeMaterial);
         view.scene.add(this.mesh);
 
-
         const crosshairGeometry = new THREE.SphereGeometry(0.1, 32, 16);
         const crosshairMaterial = new THREE.MeshBasicMaterial({
             color: 0xff0000
         });
         this.crosshairMesh = new THREE.Mesh(crosshairGeometry, crosshairMaterial);
+        this.crosshairMesh.position.y = 0.2
         view.scene.add(this.crosshairMesh);
 
         ////////////////
@@ -87,8 +88,7 @@ class Player {
     }
 
     updateModel() {
-        const moveSpeed = 1;
-        const rotTensionSpeed = 0;
+        const moveSpeed = 2;
 
         const crosshairPos = this.crosshairMesh.position;
 
@@ -96,31 +96,47 @@ class Player {
         const r = heading.length();
         heading.normalize();
 
-        const up = new THREE.Vector3(0, 1, 0);
+        const up = this.mesh.up;
 
+        const currHeading = new THREE.Vector3(0,0,-1).applyQuaternion(this.rigidBody.rotation());
+        const angle = getSignedAngle(
+            new THREE.Vector3(currHeading.x, 0, currHeading.z).normalize(),
+            new THREE.Vector3(heading.x, 0, heading.z).normalize(), 
+            up
+        );
+        this.rigidBody.applyTorqueImpulse(up.clone().multiplyScalar(angle * 10), true);
         const impulse = new THREE.Vector3();
 
         if (this.moveForward) {
-            impulse.add(heading, true);
+            impulse.add(heading);
         }
         if (this.moveBackward) {
-            impulse.add(heading.clone().negate(), true);
+            impulse.add(heading.clone().negate());
         }
 
         if (this.moveLeft) {
-            impulse.add(heading.clone().cross(up).normalize().negate(), true);
+            const sideF = heading.clone().cross(up).normalize().negate();
+            const inwardF = heading.clone().setLength(sideF.lengthSq()/r);
+            impulse.add(sideF.add(inwardF));
+
+            //this.rigidBody.applyTorqueImpulse({ x: 0.0, y: -0.5, z: 0.0 }, true);
         }
         if (this.moveRight) {
-            impulse.add(heading.clone().cross(up).normalize(), true);
+            const sideF = heading.clone().cross(up).normalize();
+            const inwardF = heading.clone().setLength(sideF.lengthSq()/r);
+            impulse.add(sideF.add(inwardF));
+
+            //this.rigidBody.applyTorqueImpulse({ x: 0.0, y: 0.5, z: 0.0 }, true);
         }
 
-        this.rigidBody.applyImpulse(impulse.normalize().multiplyScalar(moveSpeed));
+        this.rigidBody.applyImpulse(impulse.normalize().multiplyScalar(moveSpeed), true);
     }
 
     updateView() {
         // Set the visible mesh to the position of the rigid
         // body from the physics world
         this.mesh.position.copy(this.rigidBody.translation())
+        this.mesh.quaternion.copy(this.rigidBody.rotation())
     }
 
     jump() {
